@@ -2,12 +2,19 @@ let ip = {
     url: "http://whatismyip.akamai.com/"
 };
 
+const {
+    exec
+} = require("child_process");
+
+
 let fs = require('fs');
 let curl = require("curlrequest");
 let CronJob = require('cron').CronJob;
+let WebTorrent = require('webtorrent')
 let SftpClient = require('ssh2-sftp-client');
 
 let sftp = new SftpClient();
+let client = new WebTorrent()
 
 const config = {
     host: '',
@@ -15,6 +22,62 @@ const config = {
     password: '',
     port: ''
 };
+
+function whenDone(callback) {
+
+    fs.readFile('torrent.txt', 'utf8', (err, data) => {
+        if (err) throw err;
+        let count = 0;
+        let text = data.split(" ");
+        console.log(text + '\n');
+
+        for (let i = 0; i < text.length; i++) {
+
+            client.add(text[i], {
+                path: '/media/more_data/Movies'
+            }, function (torrent) {
+
+                let interval = setInterval(function () {
+                    console.log('Progress: ' + (client.progress * 100).toFixed(1) + '%')
+                }, 5000)
+
+                torrent.on('done', function () {
+                    count++;
+
+                    console.log(`Torrent download finished ${count}`)
+
+                    if (count === text.length) {
+
+                        let done = "done";
+                        callback(done)
+                    };
+
+                    clearInterval(interval)
+
+                });
+            });
+        };
+
+    });
+
+};
+
+whenDone(function (done) {
+    //console.log(done)
+    if (done) {
+
+        let vpnstop = exec('sh /home/jasen/ssh_copy/vpn_stop.sh');
+
+        vpnstop.stdout.on('data', (data) => {
+            console.log(data);
+
+        });
+
+        mainJob.start();
+    }
+
+});
+
 
 let mainJob = new CronJob('*/5 * * * *', function () {
 
@@ -86,11 +149,12 @@ let mainJob = new CronJob('*/5 * * * *', function () {
                 //Display Public IP address
                 console.log(`Public Ip Address \n ${data} \n`);
 
-                if (data === '') {
+                if (data === '98.191.99.68') {
 
                     //SSH Connection
                     async function main() {
-                        const client = new SftpClient('');
+
+                        let client = new SftpClient();
                         const src = '/media/more_data/Movies';
                         const dst = '/mnt/raid/Movies';
 
@@ -122,8 +186,4 @@ let mainJob = new CronJob('*/5 * * * *', function () {
         };
     });
 
-
-
 });
-
-mainJob.start();
