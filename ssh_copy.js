@@ -7,14 +7,21 @@ const {
 } = require("child_process");
 
 
-let fs = require('fs');
+let fs = require("fs");
 let curl = require("curlrequest");
-let CronJob = require('cron').CronJob;
-let WebTorrent = require('webtorrent')
-let SftpClient = require('ssh2-sftp-client');
+let sendmail = require("./sendmail");
+let deleteFolder = require("./delete");
+let CronJob = require("cron").CronJob;
+let WebTorrent = require("webtorrent");
+let SftpClient = require("ssh2-sftp-client");
 
+let remoteFile;
+let jobcount = 0;
 let sftp = new SftpClient();
 let client = new WebTorrent()
+
+process.argv[2]
+
 
 const config = {
     host: '',
@@ -23,6 +30,18 @@ const config = {
     port: ''
 };
 
+if (process.argv[2] === "Movies") {
+    remoteFile = "/mnt/raid/Movies/"
+    file = "/media/more_data/Movies/"
+} else if (process.argv[2] === "Music") {
+    remoteFile = "/mnt/raid/Music/"
+    file = "/media/more_data/Music/"
+} else {
+    console.log("Wrong Choice")
+    process.exit();
+};
+
+
 function whenDone(callback) {
 
     fs.readFile('torrent.txt', 'utf8', (err, data) => {
@@ -30,11 +49,11 @@ function whenDone(callback) {
         let count = 0;
         let text = data.split(" ");
         console.log(text + '\n');
-
+        //Start Webtorrent
         for (let i = 0; i < text.length; i++) {
 
             client.add(text[i], {
-                path: '/media/more_data/Movies'
+                path: file
             }, function (torrent) {
 
                 let interval = setInterval(function () {
@@ -44,7 +63,7 @@ function whenDone(callback) {
                 torrent.on('done', function () {
                     count++;
 
-                    console.log(`Torrent download finished ${count}`)
+                    console.log(`Torrent download ${count} completed... \n`)
 
                     if (count === text.length) {
 
@@ -63,7 +82,7 @@ function whenDone(callback) {
 };
 
 whenDone(function (done) {
-    //console.log(done)
+    //Turn Off VPN
     if (done) {
 
         let vpnstop = exec('sh /home/jasen/ssh_copy/vpn_stop.sh');
@@ -82,16 +101,16 @@ whenDone(function (done) {
 let mainJob = new CronJob('*/5 * * * *', function () {
 
     function tranferFile(callback) {
-
+        //Pull directory list
         fs.readdir('/media/more_data/Movies', function (err, files) {
-            //handling error
+            //Pull Directory List from Server
             if (err) {
                 return console.log('Unable to scan directory: ' + err);
             }
 
             sftp.connect(config)
                 .then(() => {
-                    return sftp.list('/mnt/raid/Movies')
+                    return sftp.list(remoteFile)
                 })
                 .then(data => {
 
@@ -110,11 +129,9 @@ let mainJob = new CronJob('*/5 * * * *', function () {
                             break;
                         };
                     };
-
+                    //Search Server List Data 
                     let createUndefinded = (values) => values === undefined;
-                    let arrValue = arr1.every(createUndefinded)
-
-                    console.log(arrValue)
+                    let arrValue = arr1.every(createUndefinded);
 
                     if (arrValue) {
                         found = 'Run';
@@ -143,43 +160,54 @@ let mainJob = new CronJob('*/5 * * * *', function () {
             job1.start();
 
         } else if (found === 'Run') {
+            //Count amount of time job has ran
+            jobcount++
+
+            console.log(`Run Times: ${jobcount} \n`);
 
             curl.request(ip, function (err, data) {
 
                 //Display Public IP address
                 console.log(`Public Ip Address \n ${data} \n`);
 
-                if (data === '98.191.99.68') {
+                if (data === '' && jobcount === 1) {
 
-                    //SSH Connection
+                    //SSH Connection Upload to Server
                     async function main() {
 
                         let client = new SftpClient();
-                        const src = '/media/more_data/Movies';
-                        const dst = '/mnt/raid/Movies';
+                        const src = file;
+                        const dst = remoteFile;
 
                         try {
                             await client.connect(config);
                             client.on('upload', info => {
-                                console.log(`Listener: Uploaded ${info.source}`);
+
+                                console.log(`Listener: Uploaded ${info.source} \n`);
+
+                                fs.appendFile('logs.txt', `${info.source} \n`, (err) => {
+                                    if (err) throw err;
+                                });
                             });
                             let rslt = await client.uploadDir(src, dst);
                             return rslt;
                         } finally {
                             client.end();
+                            sendmail();
+                            deleteFolder();
                         };
                     };
 
                     main()
                         .then(msg => {
-                            console.log(msg);
+                            console.log(msg, "\n");
                         })
                         .catch(err => {
                             console.log(`main error: ${err.message}`);
                         });
 
                 } else {
-                    console.log("\n" + "You are not Connected to the Network..." + "\n");
+                    console.log("\n" + "No Files to Upload" + "\n");
                 };
             });
 
