@@ -8,6 +8,7 @@ const {
 
 
 let fs = require("fs");
+let figlet = require('figlet');
 let colors = require('colors');
 let curl = require("curlrequest");
 let inquirer = require('inquirer');
@@ -22,6 +23,17 @@ let remoteFile;
 let jobcount = 0;
 let sftp = new SftpClient();
 let client = new WebTorrent()
+
+
+figlet('SSH Torrent Copy', function (err, data) {
+    if (err) {
+        console.log('Something went wrong...');
+        console.dir(err);
+        return;
+    };
+    console.log(data, "\n", "\n");
+});
+
 
 process.argv[2]
 
@@ -56,54 +68,61 @@ let questions = [{
 
 function whenDone(callback) {
 
-    inquirer.prompt(questions).then(answers => {
+    setTimeout(function () {
 
-        if (answers.folder === "Movies") {
+        inquirer.prompt(questions).then(answers => {
 
-            remoteFile = "/mnt/raid/Movies/"
-            file = "/media/more_data/Movies/"
-        } else if (answers.folder === "Music") {
+            if (answers.folder === "Movies") {
 
-            remoteFile = "/mnt/raid/Music/"
-            file = "/media/more_data/Music/"
-        } else {
+                file = config.variables.localFilemovies;
+                remoteFile = config.variables.remoteFilemovies;
 
-            console.log("\n" + "Inputs dont match acceptable data check --help for more information.".red);
-            process.exit();
-        };
+            } else if (answers.folder === "Music") {
 
-        let count = 0;
-        let text = answers.mag.split(" ");
-        console.log(colors.yellow("\n" + text + "\n"));
-        //Start Webtorrent
-        for (let i = 0; i < text.length; i++) {
+                file = config.variables.localFilemusic;
+                remoteFile = config.variables.remoteFilemusic;
+            } else {
 
-            client.add(text[i], {
-                path: file
-            }, function (torrent) {
+                console.log("\n" + "Inputs dont match acceptable data check --help for more information.".red);
+                process.exit();
+            };
 
-                let interval = setInterval(function () {
-                    console.log('Progress: ' + (client.progress * 100).toFixed(1) + '%'.cyan);
-                }, 5000)
+            let count = 0;
+            let text = answers.mag.split(" ");
 
-                torrent.on('done', function () {
-                    count++;
+            //Log to File Magnet Link
+            fs.writeFileSync("magnet.txt", text);
+            console.log(colors.yellow("\n" + text + "\n"));
+            //Start Webtorrent
+            for (let i = 0; i < text.length; i++) {
 
-                    console.log(`Torrent download ${count} completed... \n`.green)
+                client.add(text[i], {
+                    path: file
+                }, function (torrent) {
 
-                    if (count === text.length) {
+                    let interval = setInterval(function () {
+                        console.log('Progress: ' + (client.progress * 100).toFixed(1) + '%'.cyan);
+                    }, 5000)
 
-                        let done = "done";
-                        callback(done)
-                    };
+                    torrent.on('done', function () {
+                        count++;
 
-                    clearInterval(interval)
+                        console.log(`Torrent download ${count} completed... \n`.green)
 
+                        if (count === text.length) {
+
+                            let done = "done";
+                            callback(done)
+                        };
+
+                        clearInterval(interval)
+
+                    });
                 });
-            });
-        };
+            };
 
-    });
+        });
+    }, 1000)
 
 };
 
@@ -124,7 +143,7 @@ whenDone(function (done) {
 });
 
 
-let mainJob = new CronJob('*/5 * * * *', function () {
+let mainJob = new CronJob('*/3 * * * *', function () {
 
     function tranferFile(callback) {
         //Pull directory list
@@ -193,7 +212,7 @@ let mainJob = new CronJob('*/5 * * * *', function () {
             //Count amount of time job has ran
             jobcount++
 
-            console.log(`Run Times: ${jobcount} \n`);
+            console.log("Run Times:", colors.cyan(jobcount), "\n");
 
             curl.request(ip, function (err, data) {
 
