@@ -2,21 +2,20 @@ let ip = {
     url: "http://whatismyip.akamai.com/"
 };
 
-const {
+let {
     exec
 } = require("child_process");
 
-
 let fs = require("fs");
-let figlet = require('figlet');
-let colors = require('colors');
+let figlet = require("figlet");
+let colors = require("colors");
 let curl = require("curlrequest");
-let inquirer = require('inquirer');
-let sendmail = require("./sendmail");
+let inquirer = require("inquirer");
 let config = require("./server.json");
 let CronJob = require("cron").CronJob;
 let deleteFolder = require("./delete");
 let WebTorrent = require("webtorrent");
+let sendmail = require("./mailsender");
 let SftpClient = require("ssh2-sftp-client");
 
 let remoteFile;
@@ -91,7 +90,8 @@ function whenDone(callback) {
             let text = answers.mag.split(" ");
 
             //Log to File Magnet Link
-            fs.writeFileSync("magnet.txt", text);
+                fs.writeFileSync("/home/jasen/magnet.txt", text);
+      
             console.log(colors.yellow("\n" + text + "\n"));
             //Start Webtorrent
             for (let i = 0; i < text.length; i++) {
@@ -229,20 +229,29 @@ let mainJob = new CronJob('*/3 * * * *', function () {
                         const dst = remoteFile;
 
                         try {
-                            await client.connect(config);
+                            await client.connect(config)
+
                             client.on('upload', info => {
 
                                 console.log(`Listener: Uploaded ${info.source} \n`.green);
 
-                                fs.appendFile('logs.txt', `${info.source} \n`, (err) => {
+                                fs.appendFile('/home/jasen/ssh_copy/logs.txt', `${info.source} \n`, (err) => {
                                     if (err) throw err;
                                 });
                             });
+                           
                             let rslt = await client.uploadDir(src, dst);
                             return rslt;
+
+                        } 
+                        
+                        catch(err){
+                            console.log(err)
+
                         } finally {
+
                             client.end();
-                            sendmail();
+                            sendmail();                        
                             deleteFolder();
                         };
                     };
@@ -250,6 +259,7 @@ let mainJob = new CronJob('*/3 * * * *', function () {
                     main()
                         .then(msg => {
                             console.log(colors.green(msg, "\n"));
+                            
                         })
                         .catch(err => {
                             console.log(`main error: ${err.message} \n`.red);
@@ -266,5 +276,7 @@ let mainJob = new CronJob('*/3 * * * *', function () {
 
         };
     });
+   
 
 });
+
