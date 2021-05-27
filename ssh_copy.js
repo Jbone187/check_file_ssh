@@ -54,15 +54,15 @@ usage:
 };
 
 let questions = [{
-        type: 'input',
-        name: 'mag',
-        message: "Please add Magnet Url Seperated by a space:",
-    },
-    {
-        type: 'input',
-        name: 'folder',
-        message: "Inputs Folder Location:",
-    }
+    type: 'input',
+    name: 'mag',
+    message: "Please add Magnet Url Seperated by a space:",
+},
+{
+    type: 'input',
+    name: 'folder',
+    message: "Inputs Folder Location:",
+}
 ];
 
 function whenDone(callback) {
@@ -90,8 +90,8 @@ function whenDone(callback) {
             let text = answers.mag.split(" ");
 
             //Log to File Magnet Link
-                fs.writeFileSync("/home/jasen/magnet.txt", text);
-      
+            fs.writeFileSync("/home/jasen/magnet.txt", text);
+
             console.log(colors.yellow("\n" + text + "\n"));
             //Start Webtorrent
             for (let i = 0; i < text.length; i++) {
@@ -167,10 +167,12 @@ let mainJob = new CronJob('*/3 * * * *', function () {
                         found = files.find(movie => movie === data[i].name);
                         arr1.push(found)
 
-                        if (found) {
+                        if (typeof found === "string") {
+
                             console.log(`Folder - "${found}" is already on Server`.red);
                             found = 'DontRun';
                             callback(null, found);
+
                             break;
                         };
                     };
@@ -219,7 +221,7 @@ let mainJob = new CronJob('*/3 * * * *', function () {
                 //Display Public IP address
                 console.log(`Public Ip Address \n ${data} \n`.yellow);
 
-                if (data === '##.191.##.6#' && jobcount === 1) {
+                if (data === '98.191.99.68' && jobcount === 1) {
 
                     //SSH Connection Upload to Server
                     async function main() {
@@ -239,19 +241,19 @@ let mainJob = new CronJob('*/3 * * * *', function () {
                                     if (err) throw err;
                                 });
                             });
-                           
+
                             let rslt = await client.uploadDir(src, dst);
                             return rslt;
 
-                        } 
-                        
-                        catch(err){
+                        }
+
+                        catch (err) {
                             console.log(err)
 
                         } finally {
 
                             client.end();
-                            sendmail();                        
+                            sendmail();
                             deleteFolder();
                         };
                     };
@@ -259,7 +261,7 @@ let mainJob = new CronJob('*/3 * * * *', function () {
                     main()
                         .then(msg => {
                             console.log(colors.green(msg, "\n"));
-                            
+
                         })
                         .catch(err => {
                             console.log(`main error: ${err.message} \n`.red);
@@ -276,7 +278,7 @@ let mainJob = new CronJob('*/3 * * * *', function () {
 
         };
     });
-   
+
 
 });
 
