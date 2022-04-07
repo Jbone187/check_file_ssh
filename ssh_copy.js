@@ -13,7 +13,6 @@ let config = require("./server.json");
 let CronJob = require("cron").CronJob;
 let deleteFolder = require("./delete");
 let WebTorrent = require("webtorrent");
-let sendmail = require("./mailsender");
 let SftpClient = require("ssh2-sftp-client");
 
 let remoteFile;
@@ -21,6 +20,13 @@ let jobcount = 0;
 let sftp = new SftpClient();
 let client = new WebTorrent();
 
+/*
+function startVpn() {
+  // Start VPN
+  exec("cyberghostvpn --traffic --country-code RO --connect");
+}
+startVpn();
+*/
 figlet("SSH Torrent Copy", function (err, data) {
   if (err) {
     console.log("Something went wrong...");
@@ -30,6 +36,22 @@ figlet("SSH Torrent Copy", function (err, data) {
   console.log(data, "\n", "\n");
 });
 
+//Send Mail
+function sendmail() {
+  exec(
+    "node /home/jasen/ssh_copy_2022/sendmail.js",
+    (error, stdout, stderr) => {
+      console.log(stdout);
+
+      if (error) {
+        console.log(`error: ${error.message}`);
+        return;
+      }
+    }
+  );
+}
+
+//Cli info
 process.argv[2];
 
 if (process.argv[2] === "--help" || typeof process.argv[2] === "string") {
@@ -63,6 +85,7 @@ let questions = [
 function whenDone(callback) {
   setTimeout(function () {
     inquirer.prompt(questions).then((answers) => {
+      //User INPUT Prompts
       if (answers.folder === "Movies") {
         file = config.variables.localFilemovies;
         remoteFile = config.variables.remoteFilemovies;
@@ -85,9 +108,10 @@ function whenDone(callback) {
 
       //  fs.writeFileSync("/home/jasen/magnet.txt", text); Works in node12
 
-      fs.writeFileSync("/home/jasen/magnet.txt", JSON.stringify(text)); 
+      fs.writeFileSync("/home/jasen/magnet.txt", JSON.stringify(text)); //Bug Fix
 
       console.log(colors.yellow("\n" + text + "\n"));
+
       //Start Webtorrent
       for (let i = 0; i < text.length; i++) {
         client.add(
@@ -124,7 +148,7 @@ function whenDone(callback) {
 whenDone(function (done) {
   //Turn Off VPN
   if (done) {
-    let vpnstop = exec("sh /home/jasen/ssh_copy/vpn_stop.sh");
+    let vpnstop = exec("killall openvpn");
 
     vpnstop.stdout.on("data", (data) => {
       console.log(data);
@@ -205,7 +229,7 @@ let mainJob = new CronJob("*/4 * * * *", function () {
         //Display Public IP address
         console.log(`Public Ip Address \n ${data} \n`.yellow);
 
-        if (data === "" && jobcount === 1) {
+        if (data === "98.191.99.68" && jobcount === 1) {
           //SSH Connection Upload to Server
           async function main() {
             let client = new SftpClient();
@@ -219,7 +243,7 @@ let mainJob = new CronJob("*/4 * * * *", function () {
                 console.log(`Listener: Uploaded ${info.source} \n`.green);
 
                 fs.appendFile(
-                  "/home/jasen/ssh_copy/logs.txt",
+                  "/home/jasen/ssh_copy_2022/logs.txt",
                   `${info.source} \n`,
                   (err) => {
                     if (err) throw err;
