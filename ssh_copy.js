@@ -229,7 +229,7 @@ let mainJob = new CronJob("*/4 * * * *", function () {
         //Display Public IP address
         console.log(`Public Ip Address \n ${data} \n`.yellow);
 
-        if (data === "98.191.99.68" && jobcount === 1) {
+        if (data === "" && jobcount === 1) {
           //SSH Connection Upload to Server
           async function main() {
             let client = new SftpClient();
