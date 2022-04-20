@@ -147,14 +147,18 @@ function whenDone(callback) {
 
 whenDone(function (done) {
   //Turn Off VPN
-  if (done) {
+  if (done === "done") {
     let vpnstop = exec("killall openvpn");
 
     vpnstop.stdout.on("data", (data) => {
       console.log(data);
     });
-
+    //Start Server Directory list check and file transfer
     mainJob.start();
+  } else {
+    console.log("Error on VPN Turn off");
+
+    process.exit();
   }
 });
 
@@ -229,7 +233,7 @@ let mainJob = new CronJob("*/4 * * * *", function () {
         //Display Public IP address
         console.log(`Public Ip Address \n ${data} \n`.yellow);
 
-        if (data === "" && jobcount === 1) {
+        if (data === "needipaddress" && jobcount === 1) {
           //SSH Connection Upload to Server
           async function main() {
             let client = new SftpClient();
@@ -243,7 +247,7 @@ let mainJob = new CronJob("*/4 * * * *", function () {
                 console.log(`Listener: Uploaded ${info.source} \n`.green);
 
                 fs.appendFile(
-                  "/home/jasen/ssh_copy_2022/logs.txt",
+                  config.variables.logfile,
                   `${info.source} \n`,
                   (err) => {
                     if (err) throw err;
