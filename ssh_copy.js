@@ -66,7 +66,7 @@ usage:
   Music: Moves data to the music folder.
   --help: Used to print the usage guide. \n`);
 
-  process.exit();
+  process.exit(1);
 }
 
 let questions = [
@@ -98,7 +98,7 @@ function whenDone(callback) {
             "Inputs dont match acceptable data check --help for more information."
               .red
         );
-        process.exit();
+        process.exit(1);
       }
 
       let count = 0;
@@ -158,12 +158,14 @@ whenDone(function (done) {
   } else {
     console.log("Error on VPN Turn off");
 
-    process.exit();
+    process.exit(1);
   }
 });
 
 let mainJob = new CronJob("*/4 * * * *", function () {
   function tranferFile(callback) {
+    //Error Same File count
+    let dontrunCount = 0;
     //Pull directory list
     fs.readdir("/media/more_data/Movies", function (err, files) {
       //Pull Directory List from Server
@@ -179,19 +181,24 @@ let mainJob = new CronJob("*/4 * * * *", function () {
         .then((data) => {
           let found;
           let arr1 = [];
+          dontrunCount++;
 
           for (let i = 0; i < data.length; i++) {
             found = files.find((movie) => movie === data[i].name);
             arr1.push(found);
 
             if (typeof found === "string") {
-              console.log(`Folder - "${found}" is already on Server`.red);
+              if (dontrunCount === 1) {
+                console.log(`Folder - "${found}" is already on Server`.red);
+              }
+
               found = "DontRun";
               callback(null, found);
 
               break;
             }
           }
+
           //Search Server List Data
           let createUndefinded = (values) => values === undefined;
           let arrValue = arr1.every(createUndefinded);
@@ -233,7 +240,7 @@ let mainJob = new CronJob("*/4 * * * *", function () {
         //Display Public IP address
         console.log(`Public Ip Address \n ${data} \n`.yellow);
 
-        if (data === "needipaddress" && jobcount === 1) {
+        if (data === "ipaddress" && jobcount === 1) {
           //SSH Connection Upload to Server
           async function main() {
             let client = new SftpClient();
