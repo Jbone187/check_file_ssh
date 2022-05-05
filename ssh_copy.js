@@ -16,6 +16,7 @@ let WebTorrent = require("webtorrent");
 let SftpClient = require("ssh2-sftp-client");
 
 let remoteFile;
+let folderPath;
 let jobcount = 0;
 let sftp = new SftpClient();
 let client = new WebTorrent();
@@ -38,17 +39,14 @@ figlet("SSH Torrent Copy", function (err, data) {
 
 //Send Mail
 function sendmail() {
-  exec(
-    "node /home/jasen/ssh_copy_2022/sendmail.js",
-    (error, stdout, stderr) => {
-      console.log(stdout);
+  exec("node /home/bone/ssh_copy_2022/sendmail.js", (error, stdout, stderr) => {
+    console.log(stdout);
 
-      if (error) {
-        console.log(`error: ${error.message}`);
-        return;
-      }
+    if (error) {
+      console.log(`error: ${error.message}`);
+      return;
     }
-  );
+  });
 }
 
 //Cli info
@@ -88,9 +86,11 @@ function whenDone(callback) {
       //User INPUT Prompts
       if (answers.folder === "Movies") {
         file = config.variables.localFilemovies;
+        folderPath = config.variables.localFilemovies;
         remoteFile = config.variables.remoteFilemovies;
       } else if (answers.folder === "Music") {
         file = config.variables.localFilemusic;
+        folderPath = config.variables.localFilemusic;
         remoteFile = config.variables.remoteFilemusic;
       } else {
         console.log(
@@ -108,7 +108,10 @@ function whenDone(callback) {
 
       //  fs.writeFileSync("/home/jasen/magnet.txt", text); Works in node12
 
-      fs.writeFileSync("/home/jasen/magnet.txt", JSON.stringify(text)); //Bug Fix
+      fs.writeFileSync(
+        "/home/bone/ssh_copy_2022/magnet.txt",
+        JSON.stringify(text)
+      ); //Bug Fix
 
       console.log(colors.yellow("\n" + text + "\n"));
 
@@ -162,12 +165,10 @@ whenDone(function (done) {
   }
 });
 
-let mainJob = new CronJob("*/4 * * * *", function () {
+let mainJob = new CronJob("*/6 * * * *", function () {
   function tranferFile(callback) {
-    //Error Same File count
-    let dontrunCount = 0;
     //Pull directory list
-    fs.readdir("/media/more_data/Movies", function (err, files) {
+    fs.readdir(folderPath, function (err, files) {
       //Pull Directory List from Server
       if (err) {
         return console.log("Unable to scan directory: " + err);
@@ -181,21 +182,17 @@ let mainJob = new CronJob("*/4 * * * *", function () {
         .then((data) => {
           let found;
           let arr1 = [];
-          dontrunCount++;
 
           for (let i = 0; i < data.length; i++) {
-            found = files.find((movie) => movie === data[i].name);
+            found = files.find((serverData) => serverData === data[i].name);
+
             arr1.push(found);
 
             if (typeof found === "string") {
-              if (dontrunCount === 1) {
-                console.log(`Folder - "${found}" is already on Server`.red);
-              }
-
+              console.log(`Folder - "${found}" is already on Server`.red);
               found = "DontRun";
-              callback(null, found);
 
-              break;
+              callback(null, found);
             }
           }
 
@@ -229,6 +226,7 @@ let mainJob = new CronJob("*/4 * * * *", function () {
         });
       });
 
+      mainJob.stop();
       job1.start();
     } else if (found === "Run") {
       //Count amount of time job has ran
@@ -285,9 +283,9 @@ let mainJob = new CronJob("*/4 * * * *", function () {
               });
             });
         } else {
-          console.log("\n" + "No Files to Upload" + "\n".rainbow);
+          console.log("\n" + "No Files to Upload" + "\n".white);
           //Kill Program
-          if (jobcount === 5) {
+          if (jobcount === 3) {
             process.exit(1);
           }
         }
